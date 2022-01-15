@@ -38,13 +38,19 @@ const L_NEWLINE = `\\\n`;
 /*
  * Parser nodes
  */
-
 const T_ESCAPED_SINGLE_QUOTE = { type: C_ESCAPED_SINGLE_QUOTE, value: `\\'` };
 const T_ESCAPED_DOUBLE_QUOTE = { type: C_ESCAPED_DOUBLE_QUOTE, value: `\\"` };
 const T_SINGLE_QUOTE = { type: C_SINGLE_QUOTE, value: L_SINGLE_QUOTE };
 const T_DOUBLE_QUOTE = { type: C_DOUBLE_QUOTE, value: L_DOUBLE_QUOTE };
 const T_NEWLINE = { type: C_NEWLINE, value: L_NEWLINE };
 
+/** @typedef {T_ESCAPED_SINGLE_QUOTE | T_ESCAPED_DOUBLE_QUOTE | T_SINGLE_QUOTE | T_NEWLINE} StringAstNode */
+/**
+   @typedef {{nodes: StringAstNode[],
+              types: {escapedSingleQuote: number, escapedDoubleQuote: number, singleQuote: number, doubleQuote: number},
+              quotes: boolean}} StringAst */
+
+/** @param {StringAst} ast */
 function stringify(ast) {
   return ast.nodes.reduce((str, { value }) => {
     // Collapse multiple line strings automatically
@@ -55,12 +61,13 @@ function stringify(ast) {
     return str + value;
   }, '');
 }
-
+/** @param {string} str */
 function parse(str) {
   let code, next, value;
   let pos = 0;
   let len = str.length;
 
+  /** @type StringAst */
   const ast = {
     nodes: [],
     types: {
@@ -157,7 +164,9 @@ function parse(str) {
 
   return ast;
 }
-
+/** @param {valueParser.StringNode} node
+ *  @param {StringAst} ast
+ */
 function changeWrappingQuotes(node, ast) {
   const { types } = ast;
 
@@ -180,8 +189,8 @@ function changeWrappingQuotes(node, ast) {
   ) {
     node.quote = L_SINGLE_QUOTE;
   }
-
-  ast.nodes = ast.nodes.reduce((newAst, child) => {
+  /** @type {(newAst: StringAstNode[], child: StringAstNode) => StringAstNode[]} */
+  const changeChildQuotes = (newAst, child) => {
     if (
       child.type === C_ESCAPED_DOUBLE_QUOTE &&
       node.quote === L_SINGLE_QUOTE
@@ -197,9 +206,13 @@ function changeWrappingQuotes(node, ast) {
     }
 
     return [...newAst, child];
-  }, []);
+  };
+  ast.nodes = ast.nodes.reduce(changeChildQuotes, []);
 }
-
+/**
+ * @param {string} value
+ * @param {'single' | 'double'} preferredQuote
+ */
 function normalize(value, preferredQuote) {
   if (!value || !value.length) {
     return value;
@@ -226,16 +239,26 @@ function normalize(value, preferredQuote) {
     .toString();
 }
 
+/**
+ * @param {string} original
+ * @param {Map<string, string>} cache
+ * @param {'single' | 'double'} preferredQuote
+ * @return {string}
+ */
 function minify(original, cache, preferredQuote) {
   const key = original + '|' + preferredQuote;
   if (cache.has(key)) {
-    return cache.get(key);
+    return /** @type {string} */ (cache.get(key));
   }
   const newValue = normalize(original, preferredQuote);
   cache.set(key, newValue);
   return newValue;
 }
 
+/** @typedef {{preferredQuote?: 'double' | 'single'}} PostcssNormalizeStringOptions */
+/**
+ * @param {PostcssNormalizeStringOptions} opts
+ */
 function pluginCreator(opts) {
   const { preferredQuote } = Object.assign(
     {},
@@ -247,10 +270,9 @@ function pluginCreator(opts) {
 
   return {
     postcssPlugin: 'postcss-normalize-string',
-
+    /** @param {import('postcss').Root} css */
     OnceExit(css) {
       const cache = new Map();
-
       css.walk((node) => {
         switch (node.type) {
           case 'rule':
