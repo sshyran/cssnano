@@ -4,6 +4,6 @@
   "compilerOptions": {
     "composite": true,
     "rootDir": "src/",
-    "declarationDir": "types/dist"
+    "declarationDir": "types"
   }
 }
