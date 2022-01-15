@@ -1,11 +1,17 @@
 import CommentRemover from './lib/commentRemover';
 import commentParser from './lib/commentParser';
-
+/** @typedef {object} PostCssRemoveCommentsOptions
+ *  @property {boolean=} removeAll
+ *  @property {boolean=} removeAllButFirst
+ *  @property {(s: string) => boolean=} remove
+ */
+/** @type import('postcss').PluginCreator<PostCssRemoveCommentsOptions> */
 function pluginCreator(opts = {}) {
   const remover = new CommentRemover(opts);
   const matcherCache = new Map();
   const replacerCache = new Map();
 
+  /** @param {string} source */
   function matchesComments(source) {
     if (matcherCache.has(source)) {
       return matcherCache.get(source);
@@ -18,6 +24,11 @@ function pluginCreator(opts = {}) {
     return result;
   }
 
+  /**
+   * @param {string} source
+   * @param {(s: string) => string[]} space
+   * @return {string}
+   */
   function replaceComments(source, space, separator = ' ') {
     const key = source + '@|@' + separator;
 
@@ -48,7 +59,10 @@ function pluginCreator(opts = {}) {
 
   return {
     postcssPlugin: 'postcss-discard-comments',
-
+    /**
+     * @param {import('postcss').Root} css
+     * @param {import('postcss').Helpers} helpers
+     */
     OnceExit(css, { list }) {
       css.walk((node) => {
         if (node.type === 'comment' && remover.canRemove(node.text)) {
@@ -57,7 +71,7 @@ function pluginCreator(opts = {}) {
           return;
         }
 
-        if (node.raws.between) {
+        if (typeof node.raws.between === 'string') {
           node.raws.between = replaceComments(node.raws.between, list.space);
         }
 
@@ -69,7 +83,9 @@ function pluginCreator(opts = {}) {
               node.value = replaceComments(node.value, list.space);
             }
 
-            node.raws.value = null;
+            /** @type {null | {value: string, raw: string}} */ (
+              node.raws.value
+            ) = null;
           }
 
           if (node.raws.important) {
