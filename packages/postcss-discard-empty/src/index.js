@@ -1,18 +1,22 @@
 const plugin = 'postcss-discard-empty';
 
+/**
+ * @param {import('postcss').Root} css
+ * @param {import('postcss').Result} result
+ */
 function discardAndReport(css, result) {
+  /** @param {import('postcss').AnyNode} node */
   function discardEmpty(node) {
-    const { type, nodes: sub, params } = node;
-
-    if (sub) {
+    if ('nodes' in node) {
       node.each(discardEmpty);
     }
 
     if (
-      (type === 'decl' && !node.value) ||
-      (type === 'rule' && !node.selector) ||
-      (sub && !sub.length) ||
-      (type === 'atrule' && ((!sub && !params) || (!params && !sub.length)))
+      (node.type === 'decl' && !node.value) ||
+      (node.type === 'rule' && !node.selector) ||
+      ('nodes' in node && !node.nodes.length) ||
+      (node.type === 'atrule' &&
+        ((!node.nodes && !node.params) || (!node.params && !node.nodes.length)))
     ) {
       node.remove();
 
@@ -30,6 +34,10 @@ function discardAndReport(css, result) {
 function pluginCreator() {
   return {
     postcssPlugin: plugin,
+    /**
+     * @param {import('postcss').Root} css
+     * @param {{result: import('postcss').Result}} arg1
+     */
     OnceExit(css, { result }) {
       discardAndReport(css, result);
     },
