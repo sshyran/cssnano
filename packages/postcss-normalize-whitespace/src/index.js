@@ -5,6 +5,7 @@ const decl = 'decl';
 const rule = 'rule';
 const variableFunctions = new Set(['var', 'env', 'constant']);
 
+/** @param {valueParser.Node} node */
 function reduceCalcWhitespaces(node) {
   if (node.type === 'space') {
     node.value = ' ';
@@ -14,7 +15,7 @@ function reduceCalcWhitespaces(node) {
     }
   }
 }
-
+/** @param {valueParser.Node} node */
 function reduceWhitespaces(node) {
   if (node.type === 'space') {
     node.value = ' ';
@@ -34,7 +35,7 @@ function reduceWhitespaces(node) {
 function pluginCreator() {
   return {
     postcssPlugin: 'postcss-normalize-whitespace',
-
+    /** @param {import('postcss').Root} css */
     OnceExit(css) {
       const cache = new Map();
 
