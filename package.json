@@ -6,7 +6,7 @@
     "fixlint": "pnpm lint -- --fix",
     "prepare": "pnpm run -r --parallel prepare",
     "build:integration": "node ./util/buildFrameworks.mjs",
-    "build:types": "tsc --declaration --emitDeclarationOnly --outDir types",
+    "build:types": "tsc --build",
     "pretest": "pnpm lint",
     "test:only": "uvu -r @babel/register packages \"__tests__.*\\.js$\"",
     "test:coverage": "c8 pnpm test:only",
