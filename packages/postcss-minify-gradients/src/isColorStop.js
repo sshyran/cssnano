@@ -23,20 +23,20 @@ const lengthUnits = new Set([
   'VMAX',
   '%',
 ]);
-
+/** @param {string} input */
 function isCSSLengthUnit(input) {
   return lengthUnits.has(input.toUpperCase());
 }
-
+/** @param {string|undefined} str */
 function isStop(str) {
   let stop = !str;
 
-  if (!stop) {
+  if (str) {
     const node = unit(str);
     if (node) {
       if (
-        node.number === 0 ||
-        (!isNaN(node.number) && isCSSLengthUnit(node.unit))
+        node.number === '0' ||
+        (!isNaN(Number(node.number)) && isCSSLengthUnit(node.unit))
       ) {
         stop = true;
       }
@@ -46,7 +46,8 @@ function isStop(str) {
   }
   return stop;
 }
-
+/** @param {string} color
+ * @param {string=} stop */
 export default function isColorStop(color, stop) {
   return colord(color).isValid() && isStop(stop);
 }
