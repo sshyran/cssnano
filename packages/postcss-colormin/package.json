@@ -42,6 +42,7 @@
     "node": "^10 || ^12 || >=14.0"
   },
   "devDependencies": {
+    "@types/caniuse-api": "^3.0.2",
     "postcss": "^8.2.15"
   },
   "peerDependencies": {

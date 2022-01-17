@@ -2,33 +2,43 @@ import browserslist from 'browserslist';
 import { isSupported } from 'caniuse-api';
 import valueParser, { stringify } from 'postcss-value-parser';
 import minifyColor from './minifyColor';
-
+/**
+ * @param {{nodes: valueParser.Node[]}} parent
+ * @param {(node: valueParser.Node, index: number, parent: {nodes: valueParser.Node[]}) => false | undefined} callback
+ */
 function walk(parent, callback) {
   parent.nodes.forEach((node, index) => {
     const bubble = callback(node, index, parent);
 
-    if (node.nodes && bubble !== false) {
+    if ('nodes' in node && bubble !== false) {
       walk(node, callback);
     }
   });
 }
 
-/*
+/**
  * IE 8 & 9 do not properly handle clicks on elements
  * with a `transparent` `background-color`.
  *
  * https://developer.mozilla.org/en-US/docs/Web/Events/click#Internet_Explorer
+ *
+ * @param {string} browser
  */
+
 const browsersWithTransparentBug = new Set(['ie 8', 'ie 9']);
 const mathFunctions = new Set(['calc', 'min', 'max', 'clamp']);
 
+/** @param {valueParser.Node} node */
 function isMathFunctionNode(node) {
   if (node.type !== 'function') {
     return false;
   }
   return mathFunctions.has(node.value.toLowerCase());
 }
-
+/**
+ * @param {string} value
+ * @param {object} options
+ */
 function transform(value, options) {
   const parsed = valueParser(value);
 
@@ -38,7 +48,7 @@ function transform(value, options) {
         const { value: originalValue } = node;
 
         node.value = minifyColor(stringify(node), options);
-        node.type = 'word';
+        /** @type {string} */ (node.type) = 'word';
 
         const next = parent.nodes[index + 1];
 
@@ -50,6 +60,8 @@ function transform(value, options) {
           parent.nodes.splice(index + 1, 0, {
             type: 'space',
             value: ' ',
+            sourceIndex: 0,
+            sourceEndIndex: 0,
           });
         }
       } else if (isMathFunctionNode(node)) {
@@ -62,7 +74,10 @@ function transform(value, options) {
 
   return parsed.toString();
 }
-
+/**
+ * @param {object} options
+ * @param {string[]} browsers
+ */
 function addPluginDefaults(options, browsers) {
   const defaults = {
     // Does the browser support 4 & 8 character hex notation
@@ -74,12 +89,13 @@ function addPluginDefaults(options, browsers) {
   };
   return { ...defaults, ...options };
 }
-
+/** @type {import('postcss').PluginCreator<unknown>} */
 function pluginCreator(config = {}) {
   return {
     postcssPlugin: 'postcss-colormin',
-
+    /** @param {import('postcss').Result} result */
     prepare(result) {
+      /** @type {typeof result.opts & browserslist.Options} */
       const resultOptions = result.opts || {};
       const browsers = browserslist(null, {
         stats: resultOptions.stats,
@@ -91,6 +107,7 @@ function pluginCreator(config = {}) {
       const options = addPluginDefaults(config, browsers);
 
       return {
+        /** @param {import('postcss').Root} css */
         OnceExit(css) {
           css.walkDecls((decl) => {
             if (
