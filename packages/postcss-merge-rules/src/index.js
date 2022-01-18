@@ -7,8 +7,8 @@ import {
 } from './lib/ensureCompatibility';
 
 /**
- * @param {postcss.Declaration} a
- * @param {postcss.Declaration} b
+ * @param {import('postcss').Declaration} a
+ * @param {import('postcss').Declaration} b
  * @return {boolean}
  */
 function declarationIsEqual(a, b) {
@@ -18,8 +18,8 @@ function declarationIsEqual(a, b) {
 }
 
 /**
- * @param {postcss.Declaration[]} array
- * @param {postcss.Declaration} decl
+ * @param {import('postcss').Declaration[]} array
+ * @param {import('postcss').Declaration} decl
  * @return {number}
  */
 function indexOfDeclaration(array, decl) {
@@ -28,10 +28,10 @@ function indexOfDeclaration(array, decl) {
 
 /**
  * Returns filtered array of matched or unmatched declarations
- * @param {postcss.Declaration[]} a
- * @param {postcss.Declaration[]} b
+ * @param {import('postcss').Declaration[]} a
+ * @param {import('postcss').Declaration[]} b
  * @param {boolean} [not=false]
- * @return {postcss.Declaration[]}
+ * @return {import('postcss').Declaration[]}
  */
 function intersect(a, b, not) {
   return a.filter((c) => {
@@ -41,8 +41,8 @@ function intersect(a, b, not) {
 }
 
 /**
- * @param {postcss.Declaration[]} a
- * @param {postcss.Declaration[]} b
+ * @param {import('postcss').Declaration[]} a
+ * @param {import('postcss').Declaration[]} b
  * @return {boolean}
  */
 function sameDeclarationsAndOrder(a, b) {
@@ -53,10 +53,10 @@ function sameDeclarationsAndOrder(a, b) {
 }
 
 /**
- * @param {postcss.Rule} ruleA
- * @param {postcss.Rule} ruleB
- * @param {string[]=} browsers
- * @param {Map<string, boolean>=} compatibilityCache
+ * @param {import('postcss').Rule} ruleA
+ * @param {import('postcss').Rule} ruleB
+ * @param {string[]} browsers
+ * @param {Map<string, boolean>} compatibilityCache
  * @return {boolean}
  */
 function canMerge(ruleA, ruleB, browsers, compatibilityCache) {
@@ -70,30 +70,37 @@ function canMerge(ruleA, ruleB, browsers, compatibilityCache) {
   }
 
   const parent = sameParent(ruleA, ruleB);
-  const { name } = ruleA.parent;
-  if (parent && name && name.includes('keyframes')) {
+
+  if (
+    ruleA.parent &&
+    parent &&
+    ruleA.parent.type === 'atrule' &&
+    ruleA.parent.name.includes('keyframes')
+  ) {
     return false;
   }
   return parent && (selectors.every(noVendor) || sameVendor(a, b));
 }
 
 /**
- * @param {postcss.Rule} rule
- * @return {postcss.Declaration[]}
+ * @param {import('postcss').Rule} rule
+ * @return {import('postcss').Declaration[]}
  */
 function getDecls(rule) {
-  return rule.nodes.filter((node) => node.type === 'decl');
+  return /** @type {import('postcss').Declaration[]} */ (
+    rule.nodes.filter((node) => node.type === 'decl')
+  );
 }
-
+/** @type {(...rules: import('postcss').Rule[]) => string} */
 const joinSelectors = (...rules) => rules.map((s) => s.selector).join();
-
+/** @type {(...rules: import('postcss').Rule[]) => number} */
 function ruleLength(...rules) {
   return rules.map((r) => (r.nodes.length ? String(r) : '')).join('').length;
 }
 
 /**
  * @param {string} prop
- * @return {{prefix: string, base:string, rest:string[]}}
+ * @return {{prefix: string?, base:string?, rest:string[]}}
  */
 function splitProp(prop) {
   // Treat vendor prefixed properties as if they were unprefixed;
@@ -154,8 +161,8 @@ function isConflictingProp(propA, propB) {
 }
 
 /**
- * @param {postcss.Rule} first
- * @param {postcss.Rule} second
+ * @param {import('postcss').Rule} first
+ * @param {import('postcss').Rule} second
  * @return {boolean} merged
  */
 function mergeParents(first, second) {
@@ -177,11 +184,13 @@ function mergeParents(first, second) {
 }
 
 /**
- * @param {postcss.Rule} first
- * @param {postcss.Rule} second
- * @return {postcss.Rule} mergedRule
+ * @param {import('postcss').Rule} first
+ * @param {import('postcss').Rule} second
+ * @param {string[]} browsers
+ * @param {Map<string, boolean>} compatibilityCache
+ * @return {import('postcss').Rule} mergedRule
  */
-function partialMerge(first, second) {
+function partialMerge(first, second, browsers, compatibilityCache) {
   let intersection = intersect(getDecls(first), getDecls(second));
   if (!intersection.length) {
     return second;
@@ -192,7 +201,11 @@ function partialMerge(first, second) {
     const parentSibling = second.parent.next();
     nextRule = parentSibling && parentSibling.nodes && parentSibling.nodes[0];
   }
-  if (nextRule && nextRule.type === 'rule' && canMerge(second, nextRule)) {
+  if (
+    nextRule &&
+    nextRule.type === 'rule' &&
+    canMerge(second, nextRule, browsers, compatibilityCache)
+  ) {
     let nextIntersection = intersect(getDecls(second), getDecls(nextRule));
     if (nextIntersection.length > intersection.length) {
       mergeParents(second, nextRule);
@@ -256,7 +269,6 @@ function partialMerge(first, second) {
     // Nothing to merge
     return second;
   }
-
   const receivingBlock = second.clone();
   receivingBlock.selector = joinSelectors(first, second);
   receivingBlock.nodes = [];
@@ -267,8 +279,8 @@ function partialMerge(first, second) {
   const secondClone = second.clone();
 
   /**
-   * @param {function(postcss.Declaration):void} callback
-   * @return {function(postcss.Declaration)}
+   * @param {function(import('postcss').Declaration):void} callback
+   * @return {function(import('postcss').Declaration)}
    */
   function moveDecl(callback) {
     return (decl) => {
@@ -307,10 +319,10 @@ function partialMerge(first, second) {
 /**
  * @param {string[]} browsers
  * @param {Map<string, boolean>} compatibilityCache
- * @return {function(postcss.Rule)}
+ * @return {function(import('postcss').Rule)}
  */
 function selectorMerger(browsers, compatibilityCache) {
-  /** @type {postcss.Rule} */
+  /** @type {import('postcss').Rule | null} */
   let cache = null;
   return function (rule) {
     // Prime the cache with the first rule, or alternately ensure that it is
@@ -342,24 +354,29 @@ function selectorMerger(browsers, compatibilityCache) {
     if (cache.selector === rule.selector) {
       const cached = getDecls(cache);
       rule.walk((decl) => {
-        if (~indexOfDeclaration(cached, decl)) {
-          return decl.remove();
+        if (
+          ~indexOfDeclaration(
+            cached,
+            /** @type {import('postcss').Declaration} */ (decl)
+          )
+        ) {
+          decl.remove();
         }
-        cache.append(decl);
+        /** @type {import('postcss').Rule}*/ (cache).append(decl);
       });
       rule.remove();
       return;
     }
     // Partial merge: check if the rule contains a subset of the last; if
     // so create a joined selector with the subset, if smaller.
-    cache = partialMerge(cache, rule);
+    cache = partialMerge(cache, rule, browsers, compatibilityCache);
   };
 }
 
 function pluginCreator() {
   return {
     postcssPlugin: 'postcss-merge-rules',
-
+    /** @param {import('postcss').Result & {opts: browserslist.Options}} result */
     prepare(result) {
       const resultOpts = result.opts || {};
       const browsers = browserslist(null, {
@@ -370,6 +387,7 @@ function pluginCreator() {
 
       const compatibilityCache = new Map();
       return {
+        /** @param {import('postcss').Root} css */
         OnceExit(css) {
           css.walkRules(selectorMerger(browsers, compatibilityCache));
         },

@@ -16,7 +16,7 @@ const vendorPrefix =
 
 /**
  * @param {string} selector
- * @return {string[]}
+ * @return {string[]|null}
  */
 function filterPrefixes(selector) {
   return selector.match(vendorPrefix);
@@ -24,11 +24,17 @@ function filterPrefixes(selector) {
 
 // Internet Explorer use :-ms-input-placeholder.
 // Microsoft Edge use ::-ms-input-placeholder.
+/** @type {(selector: string) => number} */
 const findMsInputPlaceholder = (selector) =>
   ~selector.search(/-ms-input-placeholder/i);
-
+/**
+ * @param {string[]} selectorsA
+ * @param {string[]} selectorsB
+ */
 export function sameVendor(selectorsA, selectorsB) {
+  /** @type {(selectors: string[]) => string} */
   let same = (selectors) => selectors.map(filterPrefixes).join();
+  /** @type {(selectors: string[]) => string | undefined} */
   let findMsVendor = (selectors) => selectors.find(findMsInputPlaceholder);
   return (
     same(selectorsA) === same(selectorsB) &&
@@ -97,11 +103,11 @@ export const pseudoElements = {
   ':valid': formValidation,
   ':visited': cssSel2,
 };
-
+/** @param {string} selector */
 function isCssMixin(selector) {
   return selector[selector.length - 1] === ':';
 }
-
+/** @param {string} selector */
 function isHostPseudoClass(selector) {
   return selector.includes(':host');
 }
@@ -109,6 +115,10 @@ function isHostPseudoClass(selector) {
 const isSupportedCache = new Map();
 
 // Move to util in future
+/**
+ * @param {string} feature
+ * @param {string[]} browsers
+ */
 function isSupportedCached(feature, browsers) {
   const key = JSON.stringify({ feature, browsers });
   let result = isSupportedCache.get(key);
@@ -120,7 +130,11 @@ function isSupportedCached(feature, browsers) {
 
   return result;
 }
-
+/**
+ * @param {string[]} selectors
+ * @param {string[]} browsers
+ * @param {Map<string, boolean>} compatibilityCache
+ */
 export function ensureCompatibility(selectors, browsers, compatibilityCache) {
   // Should not merge mixins
   if (selectors.some(isCssMixin)) {
@@ -141,37 +155,41 @@ export function ensureCompatibility(selectors, browsers, compatibilityCache) {
     let compatible = true;
     selectorParser((ast) => {
       ast.walk((node) => {
-        const { type, value } = node;
-        if (type === 'pseudo') {
-          const entry = pseudoElements[value];
-          if (!entry && noVendor(value)) {
+        if (node.type === 'pseudo') {
+          const entry =
+            pseudoElements[/** @type {keyof pseudoElements} */ (node.value)];
+          if (!entry && noVendor(node.value)) {
             compatible = false;
           }
           if (entry && compatible) {
             compatible = isSupportedCached(entry, browsers);
           }
         }
-        if (type === 'combinator') {
-          if (value.includes('~')) {
+        if (node.type === 'combinator') {
+          if (node.value.includes('~')) {
             compatible = isSupportedCached(cssSel3, browsers);
           }
-          if (value.includes('>') || value.includes('+')) {
+          if (node.value.includes('>') || node.value.includes('+')) {
             compatible = isSupportedCached(cssSel2, browsers);
           }
         }
-        if (type === 'attribute' && node.attribute) {
+        if (node.type === 'attribute' && node.attribute) {
           // [foo]
           if (!node.operator) {
             compatible = isSupportedCached(cssSel2, browsers);
           }
 
-          if (value) {
+          if (node.value) {
             // [foo="bar"], [foo~="bar"], [foo|="bar"]
-            if (['=', '~=', '|='].includes(node.operator)) {
+            if (
+              ['=', '~=', '|='].includes(/** @type {string}*/ (node.operator))
+            ) {
               compatible = isSupportedCached(cssSel2, browsers);
             }
             // [foo^="bar"], [foo$="bar"], [foo*="bar"]
-            if (['^=', '$=', '*='].includes(node.operator)) {
+            if (
+              ['^=', '$=', '*='].includes(/** @type {string}*/ (node.operator))
+            ) {
               compatible = isSupportedCached(cssSel3, browsers);
             }
           }
