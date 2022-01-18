@@ -12,6 +12,10 @@ const genericFontFamilykeywords = new Set([
   'system-ui',
 ]);
 
+/**
+ * @param {unknown} value
+ * @param {number} length
+ */
 function makeArray(value, length) {
   let array = [];
   while (length--) {
@@ -22,7 +26,10 @@ function makeArray(value, length) {
 
 // eslint-disable-next-line no-useless-escape
 const regexSimpleEscapeCharacters = /[ !"#$%&'()*+,.\/;<=>?@\[\\\]^`{|}~]/;
-
+/**
+ * @param {string} string
+ * @param {boolean} escapeForString
+ */
 function escape(string, escapeForString) {
   let counter = 0;
   let character = null;
@@ -32,7 +39,7 @@ function escape(string, escapeForString) {
 
   while (counter < string.length) {
     character = string.charAt(counter++);
-    charCode = character.charCodeAt();
+    charCode = character.charCodeAt(0);
 
     // \r is already tokenized away at this point
     // `:` can be escaped as `\:`, but that fails in IE < 8
@@ -76,10 +83,11 @@ const regexIdentifierCharacter = /^[a-zA-Z\d\xa0-\uffff_-]+$/;
 const regexConsecutiveSpaces = /(\\(?:[a-fA-F0-9]{1,6}\x20|\x20))?(\x20{2,})/g;
 const regexTrailingEscape = /\\[a-fA-F0-9]{0,6}\x20$/;
 const regexTrailingSpace = /\x20$/;
-
+/** @param {string} string */
 function escapeIdentifierSequence(string) {
   let identifiers = string.split(regexWhitespace);
   let index = 0;
+  /** @type {string[] | string} */
   let result = [];
   let escapeResult;
 
@@ -143,9 +151,15 @@ function escapeIdentifierSequence(string) {
 
   return result;
 }
-
+/**
+ * @param {import('postcss-value-parser').Node[]} nodes
+ * @param {import('../index').PostCssMinifyFontValueOptions} opts
+ * @return {import('postcss-value-parser').WordNode[]}
+ */
 export default function (nodes, opts) {
+  /** @type {import('postcss-value-parser').Node[]} */
   let family = [];
+  /** @type {import('postcss-value-parser').WordNode | null} */
   let last = null;
   let i, max;
 
@@ -154,7 +168,7 @@ export default function (nodes, opts) {
       family.push(node);
     } else if (node.type === 'word') {
       if (!last) {
-        last = { type: 'word', value: '' };
+        last = { type: 'word', value: '', sourceEndIndex: 0, sourceIndex: 0 };
         family.push(last);
       }
 
@@ -168,7 +182,7 @@ export default function (nodes, opts) {
     }
   });
 
-  family = family.map((node) => {
+  let stringified = family.map((node) => {
     if (node.type === 'string') {
       const isKeyword = regexKeyword.test(node.value);
 
@@ -192,21 +206,23 @@ export default function (nodes, opts) {
 
   if (opts.removeAfterKeyword) {
     for (i = 0, max = family.length; i < max; i += 1) {
-      if (genericFontFamilykeywords.has(family[i].toLowerCase())) {
-        family = family.slice(0, i + 1);
+      if (genericFontFamilykeywords.has(stringified[i].toLowerCase())) {
+        stringified = stringified.slice(0, i + 1);
         break;
       }
     }
   }
 
   if (opts.removeDuplicates) {
-    family = uniqs(family);
+    stringified = uniqs(stringified);
   }
 
   return [
     {
       type: 'word',
-      value: family.join(),
+      value: stringified.join(),
+      sourceIndex: 0,
+      sourceEndIndex: 0,
     },
   ];
 }

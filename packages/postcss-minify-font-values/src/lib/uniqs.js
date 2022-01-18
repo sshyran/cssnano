@@ -1,6 +1,7 @@
+/** @param {string} exclude */
 export default function uniqueExcept(exclude) {
-  return function unique() {
-    const list = Array.prototype.concat.apply([], arguments);
+  /** @param {string[]} list */
+  return function unique(list) {
     return list.filter((item, i) => {
       if (item.toLowerCase() === exclude) {
         return true;

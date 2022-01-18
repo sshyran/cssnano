@@ -2,13 +2,17 @@ import valueParser from 'postcss-value-parser';
 import minifyWeight from './lib/minify-weight';
 import minifyFamily from './lib/minify-family';
 import minifyFont from './lib/minify-font';
-
+/** @param {string} value */
 function hasVariableFunction(value) {
   const lowerCasedValue = value.toLowerCase();
 
   return lowerCasedValue.includes('var(') || lowerCasedValue.includes('env(');
 }
-
+/**
+ * @param {string} prop
+ * @param {string} value
+ * @param {PostCssMinifyFontValueOptions} opts
+ */
 function transform(prop, value, opts) {
   let lowerCasedProp = prop.toLowerCase();
 
@@ -30,7 +34,9 @@ function transform(prop, value, opts) {
 
   return value;
 }
+/** @typedef {{removeAfterKeyword?: boolean, removeDuplicates?: boolean, removeQuotes?: boolean}} PostCssMinifyFontValueOptions */
 
+/** @param {PostCssMinifyFontValueOptions} opts */
 function pluginCreator(opts) {
   opts = Object.assign(
     {},
@@ -47,6 +53,7 @@ function pluginCreator(opts) {
     prepare() {
       const cache = new Map();
       return {
+        /** @param {import('postcss').Root} css */
         OnceExit(css) {
           css.walkDecls(/font/i, (decl) => {
             const value = decl.value;
