@@ -2,7 +2,7 @@ import browserslist from 'browserslist';
 import valueParser from 'postcss-value-parser';
 
 const regexLowerCaseUPrefix = /^u(?=\+)/;
-
+/** @param {string} range */
 function unicode(range) {
   const values = range.slice(2).split('-');
 
@@ -18,8 +18,8 @@ function unicode(range) {
   }
 
   let questionCounter = 0;
-
-  const merged = left.reduce((group, value, index) => {
+  /** @type {(group: string|false, value: string, index: number) => false|string} */
+  const merge = (group, value, index) => {
     if (group === false) {
       return false;
     }
@@ -34,7 +34,9 @@ function unicode(range) {
     }
 
     return false;
-  }, 'u+');
+  };
+  /** @type {string|false} */
+  const merged = left.reduce(merge, 'u+');
 
   // The maximum number of wildcard characters (?) for ranges is 5.
   if (merged && questionCounter < 6) {
@@ -44,16 +46,17 @@ function unicode(range) {
   return range;
 }
 
-/*
+/**
  * IE and Edge before 16 version ignore the unicode-range if the 'U' is lowercase
  *
  * https://caniuse.com/#search=unicode-range
+ *
+ * @param {string} browser
  */
-
 function hasLowerCaseUPrefixBug(browser) {
   return browserslist('ie <=11, edge <= 15').includes(browser);
 }
-
+/** @param {string} value */
 function transform(value, isLegacy = false) {
   return valueParser(value)
     .walk((child) => {
@@ -73,6 +76,7 @@ function transform(value, isLegacy = false) {
 function pluginCreator() {
   return {
     postcssPlugin: 'postcss-normalize-unicode',
+    /** @param {import('postcss').Result & {opts: browserslist.Options}} result*/
     prepare(result) {
       const cache = new Map();
       const resultOpts = result.opts || {};
@@ -84,6 +88,7 @@ function pluginCreator() {
       const isLegacy = browsers.some(hasLowerCaseUPrefixBug);
 
       return {
+        /** @param {import('postcss').Root} css */
         OnceExit(css) {
           css.walkDecls(/^unicode-range$/i, (decl) => {
             const value = decl.value;
